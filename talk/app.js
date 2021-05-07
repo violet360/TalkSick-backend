@@ -82,7 +82,11 @@ io.on("connection", (socket) => {
 
   socket.on("typing", (data) => {
     let { userTyping, roomId } = data;
-    socket.to(`${roomId}`).emit("typing", `${userTyping} is typing...`); //to all clients except the sender
+    if(userTyping !== "") {
+      socket.to(`${roomId}`).emit("typing", `${userTyping} is typing...`); //to all clients except the sender
+    } else {
+      socket.to(`${roomId}`).emit("typing", `${userTyping}`);
+    }
   });
 
   socket.on("selfMessage", (data) => {
