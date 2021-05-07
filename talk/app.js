@@ -10,10 +10,11 @@ const io = require("socket.io")(http, {
 });
 
 var redis = require("redis");
+const { group } = require("console");
 var redisClient = redis.createClient();
 
 redisClient.on("connect", function () {
-  console.log("You are now connected");
+  console.log("redis server is up");
 });
 
 let sessionStore = {};
@@ -26,7 +27,7 @@ io.use((socket, next) => {
       redisClient.get(sessionId, (err, object) => {
         if (object) {
           let allPeers = JSON.parse(object);
-          let {handle} = allPeers.find(h => h.handleId === handleId)
+          let { handle } = allPeers.find((h) => h.handleId === handleId);
           socket.handle = handle;
           socket.handleId = handleId;
           socket.sessionId = sessionId;
@@ -53,19 +54,47 @@ io.use((socket, next) => {
   }
 });
 
+let groupsChats = [];
+
 io.on("connection", (socket) => {
   console.log("a user connected");
   let { handle, sessionId, handleId } = socket;
   handleInfo = { handle, sessionId, handleId };
   socket.join(`${sessionId}`);
-  // console.log(roomInfo);
+
+  redisClient.get(`${sessionId} chats`, (err, object) => {
+    if (object === null) {
+      redisClient.set(`${sessionId} chats`, JSON.stringify([]));
+    } else {
+      groupsChats = JSON.parse(object);
+    }
+  });
+
   socket.emit("selfNetworkInfo", {
     WelcomeMsg: `you have joined the session`,
     handleInfo,
+    msg: groupsChats,
   });
+
   socket
     .to(`${sessionId}`)
     .emit("joineeNetworkInfo", `${handle} has joined the room`); //to all clients except the sender
+
+  socket.on("typing", (data) => {
+    let { userTyping, roomId } = data;
+    socket.to(`${roomId}`).emit("typing", `${userTyping} is typing...`); //to all clients except the sender
+  });
+
+  socket.on("selfMessage", (data) => {
+    redisClient.get(`${sessionId} chats`, (err, object) => {
+      let chats = JSON.parse(object);
+      let chat = data;
+      chats.push(chat);
+      redisClient.set(`${sessionId} chats`, JSON.stringify(chats));
+    });
+    socket.to(`${sessionId}`).emit("joineeMessage", data);
+  });
+
   socket.on("disconnect", () => {
     console.log("user disconnected");
     redisClient.get(sessionId, (err, object) => {
