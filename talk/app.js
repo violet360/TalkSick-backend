@@ -17,8 +17,6 @@ redisClient.on("connect", function () {
   console.log("redis server is up");
 });
 
-let sessionStore = {};
-
 io.use((socket, next) => {
   let { ghatna } = socket.handshake.auth;
   if (ghatna === "refreshing") {
@@ -81,8 +79,13 @@ io.on("connection", (socket) => {
     .emit("joineeNetworkInfo", `${handle} has joined the room`); //to all clients except the sender
 
   socket.on("typing", (data) => {
-    let { userTyping, roomId } = data;
-    socket.to(`${roomId}`).emit("typing", `${userTyping} is typing...`); //to all clients except the sender
+    let {userTyping, roomId } = data;
+    if(userTyping!="") {
+      socket.to(`${roomId}`).emit("typing", `${userTyping} is typing ...`);
+    } else {
+      socket.to(`${roomId}`).emit("typing", `${userTyping}`);      
+    }
+      
   });
 
   socket.on("selfMessage", (data) => {
