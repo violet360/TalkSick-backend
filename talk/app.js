@@ -2,6 +2,8 @@ const express = require("express");
 const app = express();
 const http = require("http").createServer(app);
 const { v1: uuidv1, v4: uuidv4 } = require("uuid");
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const io = require("socket.io")(http, {
   cors: {
@@ -79,13 +81,40 @@ io.on("connection", (socket) => {
     .emit("joineeNetworkInfo", `${handle} has joined the room`); //to all clients except the sender
 
   socket.on("typing", (data) => {
-    let {userTyping, roomId } = data;
-    if(userTyping!="") {
+    let { userTyping, roomId } = data;
+    if (userTyping != "") {
       socket.to(`${roomId}`).emit("typing", `${userTyping} is typing ...`);
     } else {
-      socket.to(`${roomId}`).emit("typing", `${userTyping}`);      
+      socket.to(`${roomId}`).emit("typing", `${userTyping}`);
     }
-      
+  });
+
+  socket.on("emailedList", (data) => {
+    console.log(data);
+    // Step 1
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL, // TODO: your gmail account
+        pass: process.env.PASSWORD, // TODO: your gmail password
+      },
+    });
+
+    // Step 2
+    let mailOptions = {
+      from: "shashankkarmakar2000@gmail.com", // TODO: email sender
+      to: data, // TODO: email receiver
+      subject: "hello comrade",
+      text: `hi you have invited to join ${sessionId} room`,
+    };
+
+    // Step 3
+    transporter.sendMail(mailOptions, (err, data) => {
+      if (err) {
+        return console.log(err, "Error occurs");
+      }
+      return console.log("Email sent!!!");
+    });
   });
 
   socket.on("selfMessage", (data) => {
